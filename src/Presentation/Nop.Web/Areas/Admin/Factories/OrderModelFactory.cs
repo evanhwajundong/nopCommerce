@@ -454,11 +454,13 @@ namespace Nop.Web.Areas.Admin.Factories
             }
 
             //reward points
-            if (order.RedeemedRewardPointsEntryId.HasValue && _rewardPointService.GetRewardPointsHistoryEntryById(order.RedeemedRewardPointsEntryId.Value) is RewardPointsHistory redeemedRewardPointsEntry)
+            var usedRewardPoint = _rewardPointService.GetRewardPointsHistory(customerId: order.CustomerId, storeId: order.StoreId, orderGuid: order.OrderGuid).FirstOrDefault(rp => rp.UsedAmount > 0);
+            //if (order.RedeemedRewardPointsEntryId.HasValue && _rewardPointService.GetRewardPointsHistoryEntryById(order.RedeemedRewardPointsEntryId.Value) is RewardPointsHistory redeemedRewardPointsEntry)
+            if(usedRewardPoint != null)
             {
-                model.RedeemedRewardPoints = -redeemedRewardPointsEntry.Points;
+                model.RedeemedRewardPoints = -usedRewardPoint.Points;
                 model.RedeemedRewardPointsAmount =
-                    _priceFormatter.FormatPrice(-redeemedRewardPointsEntry.UsedAmount, true, false);
+                    _priceFormatter.FormatPrice(-usedRewardPoint.UsedAmount, true, false);
             }
 
             //total
@@ -1766,6 +1768,7 @@ namespace Nop.Web.Areas.Admin.Factories
             var report = new List<OrderAverageReportLineSummary>
             {
                 _orderReportService.OrderAverageReport(0, OrderStatus.Pending),
+                _orderReportService.OrderAverageReport(0, OrderStatus.Verifying),
                 _orderReportService.OrderAverageReport(0, OrderStatus.Processing),
                 _orderReportService.OrderAverageReport(0, OrderStatus.Complete),
                 _orderReportService.OrderAverageReport(0, OrderStatus.Cancelled)

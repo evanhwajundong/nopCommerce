@@ -1,4 +1,4 @@
-namespace Nop.Core.Domain.Orders
+﻿namespace Nop.Core.Domain.Orders
 {
     /// <summary>
     /// Represents an order status enumeration
@@ -9,6 +9,11 @@ namespace Nop.Core.Domain.Orders
         /// Pending
         /// </summary>
         Pending = 10,
+
+        /// <summary>
+        /// Verifying
+        /// </summary>
+        Verifying = 15,
 
         /// <summary>
         /// Processing

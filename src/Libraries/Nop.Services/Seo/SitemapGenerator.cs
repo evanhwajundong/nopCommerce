@@ -275,7 +275,7 @@ namespace Nop.Services.Seo
         protected virtual IEnumerable<SitemapUrl> GetProductUrls()
         {
             return _productService.SearchProducts(storeId: _storeContext.CurrentStore.Id,
-                visibleIndividuallyOnly: true, orderBy: ProductSortingEnum.CreatedOn)
+                visibleIndividuallyOnly: true, orderBy: ProductSortingEnum.UpdatedOn)
                     .Select(product => GetLocalizedSitemapUrl("Product", GetSeoRouteParams(product), product.UpdatedOnUtc));
         }
 

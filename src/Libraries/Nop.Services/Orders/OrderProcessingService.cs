@@ -872,6 +872,15 @@ namespace Nop.Services.Orders
             if (orderPlacedCustomerNotificationQueuedEmailIds.Any())
                 AddOrderNote(order, $"\"Order placed\" email (to customer) has been queued. Queued email identifiers: {string.Join(", ", orderPlacedCustomerNotificationQueuedEmailIds)}.");
 
+            if (OrderRequiresAConfirmationEmail(order.ShippingAddressId, order.BillingAddressId, order.OrderTotal))
+            {
+                var orderConfirmationCustomerNotificationQueuedEmailIds = _workflowMessageService.SendOrderConfirmationCustomerNotification(order, _localizationSettings.DefaultAdminLanguageId);
+                if (orderConfirmationCustomerNotificationQueuedEmailIds.Any())
+                    AddOrderNote(order, $"\"Order confirmation\" email (to customer and owner) has been queued.  Queued email identifier: {string.Join(",", orderConfirmationCustomerNotificationQueuedEmailIds)}.");
+
+                SetOrderStatus(order, OrderStatus.Verifying, false);
+            }
+
             var vendors = GetVendorsInOrder(order);
             foreach (var vendor in vendors)
             {
@@ -886,6 +895,30 @@ namespace Nop.Services.Orders
             var orderPlacedAffiliateNotificationQueuedEmailIds = _workflowMessageService.SendOrderPlacedAffiliateNotification(order, _localizationSettings.DefaultAdminLanguageId);
             if (orderPlacedAffiliateNotificationQueuedEmailIds.Any())
                 AddOrderNote(order, $"\"Order placed\" email (to affiliate) has been queued. Queued email identifiers: {string.Join(", ", orderPlacedAffiliateNotificationQueuedEmailIds)}.");
+        }
+
+        /// <summary>
+        /// Confirming that both shipping and billing addresses match!
+        /// </summary>
+        /// <param name="shippingAddressId"></param>
+        /// <param name="billingAddressId"></param>
+        /// <param name="orderAmount"></param>
+        /// <returns></returns>
+        protected bool OrderRequiresAConfirmationEmail(int? shippingAddressId, int? billingAddressId, decimal orderAmount)
+        {
+            if (shippingAddressId.Value == billingAddressId.Value)
+            {
+                return false;
+            }
+
+            var shippingAddress = _addressService.GetAddressById(shippingAddressId.Value);
+            var billingAddress = _addressService.GetAddressById(billingAddressId.Value);
+
+            return !shippingAddress.StateProvinceId.Equals(billingAddress.StateProvinceId) ||
+                (orderAmount > _orderSettings.OrderAmountToCheckAddress && !(
+                shippingAddress.Address1.Equals(billingAddress.Address1, StringComparison.InvariantCultureIgnoreCase) &&
+                shippingAddress.City.Equals(billingAddress.City, StringComparison.InvariantCultureIgnoreCase) &&
+                shippingAddress.ZipPostalCode.Equals(billingAddress.ZipPostalCode)));
         }
 
         /// <summary>
@@ -1490,6 +1523,9 @@ namespace Nop.Services.Orders
         {
             if (order == null)
                 throw new ArgumentNullException(nameof(order));
+
+            if (order.OrderStatus == OrderStatus.Verifying)
+                return;
 
             if (order.PaymentStatus == PaymentStatus.Paid && !order.PaidDateUtc.HasValue)
             {

@@ -22,6 +22,7 @@ using Nop.Core.Infrastructure;
 using Nop.Services.Catalog;
 using Nop.Services.Configuration;
 using Nop.Services.Directory;
+using Nop.Services.Discounts;
 using Nop.Services.Helpers;
 using Nop.Services.Localization;
 using Nop.Services.Media;
@@ -71,6 +72,7 @@ namespace Nop.Services.Common
         private readonly PdfSettings _pdfSettings;
         private readonly TaxSettings _taxSettings;
         private readonly VendorSettings _vendorSettings;
+        private readonly IDiscountService _discountService;
 
         #endregion
 
@@ -106,7 +108,8 @@ namespace Nop.Services.Common
             MeasureSettings measureSettings,
             PdfSettings pdfSettings,
             TaxSettings taxSettings,
-            VendorSettings vendorSettings)
+            VendorSettings vendorSettings,
+            IDiscountService discountService)
         {
             _addressSettings = addressSettings;
             _addressService = addressService;
@@ -139,6 +142,7 @@ namespace Nop.Services.Common
             _pdfSettings = pdfSettings;
             _taxSettings = taxSettings;
             _vendorSettings = vendorSettings;
+            _discountService = discountService;
         }
 
         #endregion
@@ -648,12 +652,13 @@ namespace Nop.Services.Common
             }
 
             //reward points
-            if (order.RedeemedRewardPointsEntryId.HasValue && _rewardPointService.GetRewardPointsHistoryEntryById(order.RedeemedRewardPointsEntryId.Value) is RewardPointsHistory redeemedRewardPointsEntry)
+            var usedRewardPoint = _rewardPointService.GetRewardPointsHistory(customerId: order.CustomerId, storeId: order.StoreId, orderGuid: order.OrderGuid).FirstOrDefault(rp => rp.UsedAmount > 0);
+            if (usedRewardPoint != null)
             {
                 var rpTitle = string.Format(_localizationService.GetResource("PDFInvoice.RewardPoints", languageId),
-                    -redeemedRewardPointsEntry.Points);
+                    -usedRewardPoint.Points);
                 var rpAmount = _priceFormatter.FormatPrice(
-                    -_currencyService.ConvertCurrency(redeemedRewardPointsEntry.UsedAmount, order.CurrencyRate),
+                    -_currencyService.ConvertCurrency(usedRewardPoint.UsedAmount, order.CurrencyRate),
                     true, order.CustomerCurrencyCode, false, languageId);
 
                 var p = GetPdfCell($"{rpTitle} {rpAmount}", font);
@@ -1131,7 +1136,7 @@ namespace Nop.Services.Common
         /// <param name="font">Text font</param>
         /// <param name="titleFont">Title font</param>
         /// <param name="doc">Document</param>
-        protected virtual void PrintHeader(PdfSettings pdfSettingsByStore, Language lang, Order order, Font font, Font titleFont, Document doc)
+        protected virtual void PrintHeader(PdfSettings pdfSettingsByStore, Language lang, Order order, Font font, Font titleFont, Document doc, bool addBarcode)
         {
             //logo
             var logoPicture = _pictureService.GetPictureById(pdfSettingsByStore.LogoPictureId);
@@ -1157,6 +1162,16 @@ namespace Nop.Services.Common
             cellHeader.Phrase.Add(new Phrase(Environment.NewLine));
             cellHeader.Phrase.Add(GetParagraph("PDFInvoice.OrderDate", lang, font, _dateTimeHelper.ConvertToUserTime(order.CreatedOnUtc, DateTimeKind.Utc).ToString("D", new CultureInfo(lang.LanguageCulture))));
             cellHeader.Phrase.Add(new Phrase(Environment.NewLine));
+            cellHeader.Phrase.Add(GetParagraph("Customer.TotalOrder", lang, font, _orderService.SearchOrders(customerId: order.CustomerId).Where(s => s.OrderStatus == OrderStatus.Complete).Count()));
+
+            var discountIds = _discountService.GetAllDiscountUsageHistory().Where(duh => duh.OrderId == order.Id).Select(duh => duh.DiscountId).ToList();
+            var discountCodesUsed = _discountService.GetAllDiscounts().Where(ad => discountIds.Any(di => di == ad.Id)).Select(ad => ad.Name).ToList();
+            if (discountCodesUsed != null && discountCodesUsed.Count > 0)
+            {
+                cellHeader.Phrase.Add(new Phrase(Environment.NewLine));
+                cellHeader.Phrase.Add(GetParagraph("Order.DiscountUsed", lang, font, String.Join(", ", discountCodesUsed)));
+            }
+            cellHeader.Phrase.Add(new Phrase(Environment.NewLine));
             cellHeader.Phrase.Add(new Phrase(Environment.NewLine));
             cellHeader.HorizontalAlignment = Element.ALIGN_LEFT;
             cellHeader.Border = Rectangle.NO_BORDER;
@@ -1180,6 +1195,29 @@ namespace Nop.Services.Common
                 headerTable.AddCell(cellLogo);
             }
 
+            //barcode
+            if (addBarcode)
+            {
+                var barcodeTable = new PdfPTable(1);
+                barcodeTable.RunDirection = GetDirection(lang);
+                barcodeTable.WidthPercentage = 50f;
+
+                BarcodeLib.Barcode b = new BarcodeLib.Barcode();
+                using (System.Drawing.Image img = b.Encode(BarcodeLib.TYPE.CODE128, order.Id.ToString(), System.Drawing.Color.Black, System.Drawing.Color.White, 290, 120))
+                {
+                    var barcode = Image.GetInstance(img, BaseColor.Black);
+                    barcode.Alignment = GetAlignment(lang);
+                    barcode.ScaleToFit(58f, 24f);
+
+                    var cellBarcode = new PdfPCell();
+                    cellBarcode.Border = Rectangle.NO_BORDER;
+                    cellBarcode.AddElement(barcode);
+                    barcodeTable.AddCell(cellBarcode);
+                }
+
+                doc.Add(barcodeTable);
+            }
+
             doc.Add(headerTable);
         }
 
@@ -1194,7 +1232,7 @@ namespace Nop.Services.Common
         /// <param name="languageId">Language identifier; 0 to use a language used when placing an order</param>
         /// <param name="vendorId">Vendor identifier to limit products; 0 to print all products. If specified, then totals won't be printed</param>
         /// <returns>A path of generated file</returns>
-        public virtual string PrintOrderToPdf(Order order, int languageId = 0, int vendorId = 0)
+        public virtual string PrintOrderToPdf(Order order, int languageId = 0, int vendorId = 0, bool addBarcode = false)
         {
             if (order == null)
                 throw new ArgumentNullException(nameof(order));
@@ -1204,7 +1242,7 @@ namespace Nop.Services.Common
             using (var fileStream = new FileStream(filePath, FileMode.Create))
             {
                 var orders = new List<Order> { order };
-                PrintOrdersToPdf(fileStream, orders, languageId, vendorId);
+                PrintOrdersToPdf(fileStream, orders, languageId, vendorId, addBarcode);
             }
 
             return filePath;
@@ -1217,7 +1255,7 @@ namespace Nop.Services.Common
         /// <param name="orders">Orders</param>
         /// <param name="languageId">Language identifier; 0 to use a language used when placing an order</param>
         /// <param name="vendorId">Vendor identifier to limit products; 0 to print all products. If specified, then totals won't be printed</param>
-        public virtual void PrintOrdersToPdf(Stream stream, IList<Order> orders, int languageId = 0, int vendorId = 0)
+        public virtual void PrintOrdersToPdf(Stream stream, IList<Order> orders, int languageId = 0, int vendorId = 0, bool addBarcode = false)
         {
             if (stream == null)
                 throw new ArgumentNullException(nameof(stream));
@@ -1259,7 +1297,7 @@ namespace Nop.Services.Common
                     lang = _workContext.WorkingLanguage;
 
                 //header
-                PrintHeader(pdfSettingsByStore, lang, order, font, titleFont, doc);
+                PrintHeader(pdfSettingsByStore, lang, order, font, titleFont, doc, addBarcode);
 
                 //addresses
                 PrintAddresses(vendorId, lang, titleFont, order, font, doc);

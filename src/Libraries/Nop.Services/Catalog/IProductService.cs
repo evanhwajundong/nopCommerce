@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Nop.Core;
 using Nop.Core.Domain.Catalog;
@@ -128,7 +128,7 @@ namespace Nop.Services.Catalog
             bool searchProductTags = false,
             int languageId = 0,
             IList<int> filteredSpecs = null,
-            ProductSortingEnum orderBy = ProductSortingEnum.Position,
+            ProductSortingEnum orderBy = ProductSortingEnum.UpdatedOn,
             bool showHidden = false,
             bool? overridePublished = null);
 
@@ -190,7 +190,7 @@ namespace Nop.Services.Catalog
             bool searchProductTags = false,
             int languageId = 0,
             IList<int> filteredSpecs = null,
-            ProductSortingEnum orderBy = ProductSortingEnum.Position,
+            ProductSortingEnum orderBy = ProductSortingEnum.UpdatedOn,
             bool showHidden = false,
             bool? overridePublished = null);
 

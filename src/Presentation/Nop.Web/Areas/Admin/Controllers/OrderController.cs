@@ -914,7 +914,7 @@ namespace Nop.Web.Areas.Admin.Controllers
             byte[] bytes;
             using (var stream = new MemoryStream())
             {
-                _pdfService.PrintOrdersToPdf(stream, orders, _orderSettings.GeneratePdfInvoiceInCustomerLanguage ? 0 : _workContext.WorkingLanguage.Id, vendorId);
+                _pdfService.PrintOrdersToPdf(stream, orders, _orderSettings.GeneratePdfInvoiceInCustomerLanguage ? 0 : _workContext.WorkingLanguage.Id, vendorId, true);
                 bytes = stream.ToArray();
             }
 
@@ -2704,6 +2704,7 @@ namespace Nop.Web.Areas.Admin.Controllers
                             value = _orderService.SearchOrders(
                                 createdFromUtc: _dateTimeHelper.ConvertToUtcTime(searchYearDateUser, timeZone),
                                 createdToUtc: _dateTimeHelper.ConvertToUtcTime(searchYearDateUser.AddMonths(1), timeZone),
+                                osIds: new List<int> { 10, 20, 30 },
                                 pageIndex: 0,
                                 pageSize: 1, getOnlyTotalCount: true).TotalCount.ToString()
                         });
@@ -2724,6 +2725,7 @@ namespace Nop.Web.Areas.Admin.Controllers
                             value = _orderService.SearchOrders(
                                 createdFromUtc: _dateTimeHelper.ConvertToUtcTime(searchMonthDateUser, timeZone),
                                 createdToUtc: _dateTimeHelper.ConvertToUtcTime(searchMonthDateUser.AddDays(1), timeZone),
+                                osIds: new List<int> { 10, 20, 30 },
                                 pageIndex: 0,
                                 pageSize: 1, getOnlyTotalCount: true).TotalCount.ToString()
                         });
@@ -2746,6 +2748,7 @@ namespace Nop.Web.Areas.Admin.Controllers
                                 createdFromUtc: _dateTimeHelper.ConvertToUtcTime(searchWeekDateUser, timeZone),
                                 createdToUtc: _dateTimeHelper.ConvertToUtcTime(searchWeekDateUser.AddDays(1), timeZone),
                                 pageIndex: 0,
+                                osIds: new List<int> { 10, 20, 30 },
                                 pageSize: 1, getOnlyTotalCount: true).TotalCount.ToString()
                         });
 

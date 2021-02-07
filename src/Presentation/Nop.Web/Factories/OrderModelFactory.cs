@@ -378,11 +378,12 @@ namespace Nop.Web.Factories
                 });
             }
 
-            //reward points           
-            if (order.RedeemedRewardPointsEntryId.HasValue && _rewardPointService.GetRewardPointsHistoryEntryById(order.RedeemedRewardPointsEntryId.Value) is RewardPointsHistory redeemedRewardPointsEntry)
+            //reward points     
+            var usedRewardPoint = _rewardPointService.GetRewardPointsHistory(customerId: order.CustomerId, storeId: order.StoreId, orderGuid: order.OrderGuid).FirstOrDefault(rp => rp.UsedAmount > 0);
+            if (usedRewardPoint != null)
             {
-                model.RedeemedRewardPoints = -redeemedRewardPointsEntry.Points;
-                model.RedeemedRewardPointsAmount = _priceFormatter.FormatPrice(-(_currencyService.ConvertCurrency(redeemedRewardPointsEntry.UsedAmount, order.CurrencyRate)), true, order.CustomerCurrencyCode, false, languageId);
+                model.RedeemedRewardPoints = -usedRewardPoint.Points;
+                model.RedeemedRewardPointsAmount = _priceFormatter.FormatPrice(-(_currencyService.ConvertCurrency(usedRewardPoint.UsedAmount, order.CurrencyRate)), true, order.CustomerCurrencyCode, false, languageId);
             }
 
             //total

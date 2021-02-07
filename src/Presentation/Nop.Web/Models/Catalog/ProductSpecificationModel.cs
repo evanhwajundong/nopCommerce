@@ -32,5 +32,9 @@ namespace Nop.Web.Models.Catalog
         /// Attribyte type ID
         /// </summary>
         public int AttributeTypeId { get; set; }
+        /// <summary>
+        /// Domain of product specificiation for custom text
+        /// </summary>
+        public string CustomAttributeDomainName { get; set; }
     }
 }

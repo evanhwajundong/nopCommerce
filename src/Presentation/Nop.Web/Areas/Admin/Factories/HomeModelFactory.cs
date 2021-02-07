@@ -27,7 +27,7 @@ namespace Nop.Web.Areas.Admin.Factories
         private readonly ISettingService _settingService;
         private readonly IStaticCacheManager _staticCacheManager;
         private readonly IWorkContext _workContext;
-        private readonly NopHttpClient _nopHttpClient;
+        private readonly StoreHttpClient _storeHttpClient;
 
         #endregion
 
@@ -41,7 +41,7 @@ namespace Nop.Web.Areas.Admin.Factories
             ISettingService settingService,
             IStaticCacheManager staticCacheManager,
             IWorkContext workContext,
-            NopHttpClient nopHttpClient)
+            StoreHttpClient storeHttpClient)
         {
             _adminAreaSettings = adminAreaSettings;
             _cacheKeyService = cacheKeyService;
@@ -51,7 +51,7 @@ namespace Nop.Web.Areas.Admin.Factories
             _settingService = settingService;
             _staticCacheManager = staticCacheManager;
             _workContext = workContext;
-            _nopHttpClient = nopHttpClient;
+            _storeHttpClient = storeHttpClient;
         }
 
         #endregion
@@ -96,7 +96,7 @@ namespace Nop.Web.Areas.Admin.Factories
                 {
                     try
                     {
-                        return _nopHttpClient.GetNewsRssAsync().Result;
+                        return _storeHttpClient.GetNewsRssAsync().Result;
                     }
                     catch (AggregateException exception)
                     {

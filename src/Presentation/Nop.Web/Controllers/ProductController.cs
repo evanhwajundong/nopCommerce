@@ -315,7 +315,7 @@ namespace Nop.Web.Controllers
                 storeId: _storeContext.CurrentStore.Id,
                 visibleIndividuallyOnly: true,
                 markedAsNewOnly: true,
-                orderBy: ProductSortingEnum.CreatedOn,
+                orderBy: ProductSortingEnum.UpdatedOn,
                 pageSize: _catalogSettings.NewProductsNumber);
 
             var model = new List<ProductOverviewModel>();
@@ -341,7 +341,7 @@ namespace Nop.Web.Controllers
                 storeId: _storeContext.CurrentStore.Id,
                 visibleIndividuallyOnly: true,
                 markedAsNewOnly: true,
-                orderBy: ProductSortingEnum.CreatedOn,
+                orderBy: ProductSortingEnum.UpdatedOn,
                 pageSize: _catalogSettings.NewProductsNumber);
             foreach (var product in products)
             {

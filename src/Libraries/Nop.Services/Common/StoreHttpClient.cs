@@ -2,6 +2,7 @@
 using System.Net.Http;
 using System.Threading.Tasks;
 using Nop.Core;
+using Nop.Core.Rss;
 
 namespace Nop.Services.Common
 {
@@ -38,6 +39,13 @@ namespace Nop.Services.Common
         public virtual async Task KeepAliveAsync()
         {
             await _httpClient.GetStringAsync(NopCommonDefaults.KeepAlivePath);
+        }
+
+        public virtual async Task<RssFeed> GetNewsRssAsync()
+        {
+            //get news feed
+            using var stream = await _httpClient.GetStreamAsync("https://www.smokingoutlet.net/boards/activediscussionsrss");
+            return await RssFeed.LoadAsync(stream);
         }
 
         #endregion

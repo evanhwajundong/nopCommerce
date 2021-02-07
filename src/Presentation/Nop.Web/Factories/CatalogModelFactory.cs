@@ -163,8 +163,12 @@ namespace Nop.Web.Factories
                 throw new ArgumentNullException(nameof(command));
 
             //set the order by position by default
+            if (command.OrderBy == null)
+            {
+                command.OrderBy = (int)ProductSortingEnum.UpdatedOn;
+            }
+
             pagingFilteringModel.OrderBy = command.OrderBy;
-            command.OrderBy = (int)ProductSortingEnum.Position;
 
             //ensure that product sorting is enabled
             if (!_catalogSettings.AllowProductSorting)

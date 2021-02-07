@@ -1635,7 +1635,6 @@ namespace Nop.Web.Factories
                     var m = new ProductSpecificationModel
                     {
                         SpecificationAttributeId = specAttribute.Id,
-                        SpecificationAttributeName = _localizationService.GetLocalized(specAttribute, x => x.Name),
                         ColorSquaresRgb = specAttributeOption.ColorSquaresRgb,
                         AttributeTypeId = psa.AttributeTypeId
                     };
@@ -1643,18 +1642,23 @@ namespace Nop.Web.Factories
                     switch (psa.AttributeType)
                     {
                         case SpecificationAttributeType.Option:
-                            m.ValueRaw =
-                                WebUtility.HtmlEncode(
-                                    _localizationService.GetLocalized(specAttributeOption, x => x.Name));
+                            m.SpecificationAttributeName = _localizationService.GetLocalized(specAttribute, x => x.Name);
+                            m.CustomAttributeDomainName = String.Empty;
+                            m.ValueRaw = WebUtility.HtmlEncode(_localizationService.GetLocalized(specAttributeOption, x => x.Name));
                             break;
                         case SpecificationAttributeType.CustomText:
-                            m.ValueRaw =
-                                WebUtility.HtmlEncode(_localizationService.GetLocalized(psa, x => x.CustomValue));
+                            m.SpecificationAttributeName = _localizationService.GetLocalized(specAttributeOption, x => x.Name);
+                            m.CustomAttributeDomainName = _localizationService.GetLocalized(specAttribute, x => x.Name);
+                            m.ValueRaw = WebUtility.HtmlEncode(_localizationService.GetLocalized(psa, x => x.CustomValue));
                             break;
                         case SpecificationAttributeType.CustomHtmlText:
+                            m.SpecificationAttributeName = _localizationService.GetLocalized(specAttributeOption, x => x.Name);
+                            m.CustomAttributeDomainName = _localizationService.GetLocalized(specAttribute, x => x.Name);
                             m.ValueRaw = _localizationService.GetLocalized(psa, x => x.CustomValue);
                             break;
                         case SpecificationAttributeType.Hyperlink:
+                            m.SpecificationAttributeName = _localizationService.GetLocalized(specAttributeOption, x => x.Name);
+                            m.CustomAttributeDomainName = _localizationService.GetLocalized(specAttribute, x => x.Name);
                             m.ValueRaw = $"<a href='{psa.CustomValue}' target='_blank'>{psa.CustomValue}</a>";
                             break;
                         default:

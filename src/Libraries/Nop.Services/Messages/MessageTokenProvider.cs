@@ -32,10 +32,12 @@ using Nop.Services.Catalog;
 using Nop.Services.Common;
 using Nop.Services.Customers;
 using Nop.Services.Directory;
+using Nop.Services.Discounts;
 using Nop.Services.Events;
 using Nop.Services.Forums;
 using Nop.Services.Helpers;
 using Nop.Services.Localization;
+using Nop.Services.Media;
 using Nop.Services.News;
 using Nop.Services.Orders;
 using Nop.Services.Payments;
@@ -88,6 +90,8 @@ namespace Nop.Services.Messages
         private readonly PaymentSettings _paymentSettings;
         private readonly StoreInformationSettings _storeInformationSettings;
         private readonly TaxSettings _taxSettings;
+        private readonly IPictureService _pictureService;
+        private readonly IDiscountService _discountService;
 
         private Dictionary<string, IEnumerable<string>> _allowedTokens;
 
@@ -129,7 +133,9 @@ namespace Nop.Services.Messages
             MessageTemplatesSettings templatesSettings,
             PaymentSettings paymentSettings,
             StoreInformationSettings storeInformationSettings,
-            TaxSettings taxSettings)
+            TaxSettings taxSettings,
+            IPictureService pictureService,
+            IDiscountService discountService)
         {
             _catalogSettings = catalogSettings;
             _currencySettings = currencySettings;
@@ -166,6 +172,8 @@ namespace Nop.Services.Messages
             _paymentSettings = paymentSettings;
             _storeInformationSettings = storeInformationSettings;
             _taxSettings = taxSettings;
+            _pictureService = pictureService;
+            _discountService = discountService;
         }
 
         #endregion
@@ -259,7 +267,9 @@ namespace Nop.Services.Messages
                     "%Order.CreatedOn%",
                     "%Order.OrderURLForCustomer%",
                     "%Order.PickupInStore%",
-                    "%Order.OrderId%"
+                    "%Order.OrderId%",
+                    "%TrustPilot.ProductReviews%",
+                    "%Order.DiscountName%"
                 });
 
                 //shipment tokens
@@ -455,6 +465,42 @@ namespace Nop.Services.Messages
         #endregion
 
         #region Utilities
+
+        protected virtual string ProductReviewForTrustPilot(Order order, int vendorId, int productTargetSize)
+        {
+            var sb = new StringBuilder();
+            var billingAddress = _addressService.GetAddressById(order.BillingAddressId);
+            var customer = _customerService.GetCustomerById(order.CustomerId);
+
+            sb.AppendLine("{");
+            sb.AppendLine("\"recipientName\":\"" + billingAddress.FirstName + " " + billingAddress.LastName + "\",");
+            sb.AppendLine("\"recipientEmail\":\"" + customer.Email + "\",");
+            sb.AppendLine("\"referenceId\":\"" + order.Id + "\",");
+            sb.AppendLine("\"products\":[{");
+
+            var orderCount = 1;
+            var orderItems = _orderService.GetOrderItems(order.Id, vendorId: vendorId);
+            foreach (var orderItem in orderItems)
+            {
+                var defaultProductPicture = _pictureService.GetPicturesByProductId(orderItem.ProductId, 1).FirstOrDefault();
+                var product = _productService.GetProductById(orderItem.ProductId);
+                var productUrl = RouteUrl(routeName: "Product", routeValues: new { SeName = _urlRecordService.GetSeName(product) });
+
+                sb.AppendLine("\"productUrl\":\"" + productUrl + "\",");
+                sb.AppendLine("\"imageUrl\":\"" + _pictureService.GetPictureUrl(ref defaultProductPicture, productTargetSize, true) + "\",");
+                sb.AppendLine("\"name\":\"" + product.Name + "\",");
+                sb.AppendLine("\"sku\":\"" + product.Sku + "\"");
+                if (orderItems.Count > orderCount)
+                {
+                    sb.AppendLine("},{");
+                    orderCount++;
+                }
+            }
+            sb.AppendLine("}]");
+            sb.AppendLine("}");
+
+            return sb.ToString();
+        }
 
         /// <summary>
         /// Convert a collection to a HTML table
@@ -776,11 +822,12 @@ namespace Nop.Services.Messages
             }
 
             //reward points
-            if (order.RedeemedRewardPointsEntryId.HasValue && _rewardPointService.GetRewardPointsHistoryEntryById(order.RedeemedRewardPointsEntryId.Value) is RewardPointsHistory redeemedRewardPointsEntry)
+            var usedRewardPoint = _rewardPointService.GetRewardPointsHistory(customerId: order.CustomerId, storeId: order.StoreId, orderGuid: order.OrderGuid).FirstOrDefault(rp => rp.UsedAmount > 0);
+            if (usedRewardPoint != null)
             {
                 var rpTitle = string.Format(_localizationService.GetResource("Messages.Order.RewardPoints", languageId),
-                    -redeemedRewardPointsEntry.Points);
-                var rpAmount = _priceFormatter.FormatPrice(-_currencyService.ConvertCurrency(redeemedRewardPointsEntry.UsedAmount, order.CurrencyRate), true,
+                    -usedRewardPoint.Points);
+                var rpAmount = _priceFormatter.FormatPrice(-_currencyService.ConvertCurrency(usedRewardPoint.UsedAmount, order.CurrencyRate), true,
                     order.CustomerCurrencyCode, false, languageId);
                 sb.AppendLine($"<tr style=\"text-align:right;\"><td>&nbsp;</td><td colspan=\"2\" style=\"background-color: {_templatesSettings.Color3};padding:0.6em 0.4 em;\"><strong>{rpTitle}</strong></td> <td style=\"background-color: {_templatesSettings.Color3};padding:0.6em 0.4 em;\"><strong>{rpAmount}</strong></td></tr>");
             }
@@ -983,6 +1030,9 @@ namespace Nop.Services.Messages
 
             var paymentMethod = _paymentPluginManager.LoadPluginBySystemName(order.PaymentMethodSystemName);
             var paymentMethodName = paymentMethod != null ? _localizationService.GetLocalizedFriendlyName(paymentMethod, _workContext.WorkingLanguage.Id) : order.PaymentMethodSystemName;
+            var discountIds = _discountService.GetAllDiscountUsageHistory().Where(duh => duh.OrderId == order.Id).Select(duh => duh.DiscountId).ToList();
+            var discountCodesUsed = _discountService.GetAllDiscounts().Where(ad => discountIds.Any(di => di == ad.Id)).Select(ad => ad.Name).ToList();
+
             tokens.Add(new Token("Order.PaymentMethod", paymentMethodName));
             tokens.Add(new Token("Order.VatNumber", order.VatNumber));
             var sbCustomValues = new StringBuilder();
@@ -997,8 +1047,10 @@ namespace Nop.Services.Messages
             }
 
             tokens.Add(new Token("Order.CustomValues", sbCustomValues.ToString(), true));
-
             tokens.Add(new Token("Order.Product(s)", ProductListToHtmlTable(order, languageId, vendorId), true));
+
+            tokens.Add(new Token("TrustPilot.ProductReviews", ProductReviewForTrustPilot(order, vendorId, 200), true));
+            tokens.Add(new Token("Order.DiscountName", String.Join(", ", discountCodesUsed)));
 
             var language = _languageService.GetLanguageById(languageId);
             if (language != null && !string.IsNullOrEmpty(language.LanguageCulture))
@@ -1058,6 +1110,16 @@ namespace Nop.Services.Messages
                 var shipmentTracker = shipmentService.GetShipmentTracker(shipment);
                 if (shipmentTracker != null)
                     trackingNumberUrl = shipmentTracker.GetUrl(shipment.TrackingNumber);
+            }
+
+            if (string.IsNullOrEmpty(trackingNumberUrl.Trim()))
+            {
+                if (shipment.TrackingNumber.StartsWith("UPS-", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    trackingNumberUrl = "https://wwwapps.ups.com/WebTracking/processInputRequest?sort_by=status&error_carried=true&tracknums_displayed=1&TypeOfInquiryNumber=T&loc=en_us&InquiryNumber1=" + shipment.TrackingNumber.Remove(0, 4) + "&AgreeToTermsAndConditions=yes&requester=ST/trackdetails";
+                } else {
+                    trackingNumberUrl = "https://tools.usps.com/go/TrackConfirmAction_input?origTrackNum=" + shipment.TrackingNumber;
+                }
             }
 
             tokens.Add(new Token("Shipment.TrackingNumberURL", trackingNumberUrl, true));
@@ -1496,6 +1558,7 @@ namespace Nop.Services.Messages
                 case MessageTemplateSystemNames.OrderPlacedCustomerNotification:
                 case MessageTemplateSystemNames.OrderCompletedCustomerNotification:
                 case MessageTemplateSystemNames.OrderCancelledCustomerNotification:
+                case MessageTemplateSystemNames.OrderPlacedConfirmationCustomerNotification:
                     return new[] { TokenGroupNames.StoreTokens, TokenGroupNames.OrderTokens, TokenGroupNames.CustomerTokens };
 
                 case MessageTemplateSystemNames.ShipmentSentCustomerNotification:

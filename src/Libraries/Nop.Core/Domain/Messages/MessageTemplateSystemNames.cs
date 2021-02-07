@@ -1,4 +1,4 @@
-namespace Nop.Core.Domain.Messages
+﻿namespace Nop.Core.Domain.Messages
 {
     /// <summary>
     /// Represents message template system names
@@ -55,6 +55,11 @@ namespace Nop.Core.Domain.Messages
         /// Represents system name of notification store owner about paid order
         /// </summary>
         public const string OrderPaidStoreOwnerNotification = "OrderPaid.StoreOwnerNotification";
+
+        /// <summary>
+        /// Represents system name of notification confirming that both billing and shipping addresses are correct
+        /// </summary>
+        public const string OrderPlacedConfirmationCustomerNotification = "OrderPlaced.ConfirmationCustomerNotification";
 
         /// <summary>
         /// Represents system name of notification customer about paid order
