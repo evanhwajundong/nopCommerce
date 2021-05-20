@@ -393,7 +393,9 @@ namespace Nop.Services.Orders
 
             if (_shoppingCartService.ShoppingCartRequiresShipping(restoredCart))
             {
-                if (!IsFreeShipping(restoredCart, _shippingSettings.FreeShippingOverXIncludingTax ? subTotalInclTax : subTotalExclTax))
+                var shippingAddress = _addressService.GetAddressById(updatedOrder.ShippingAddressId ?? 0);
+
+                if (shippingAddress.CountryId != 1 || !IsFreeShipping(restoredCart, _shippingSettings.FreeShippingOverXIncludingTax ? subTotalInclTax : subTotalExclTax))
                 {
                     var shippingTotal = decimal.Zero;
                     if (!string.IsNullOrEmpty(updatedOrder.ShippingRateComputationMethodSystemName))
@@ -426,7 +428,6 @@ namespace Nop.Services.Orders
                         else
                         {
                             //customer chose shipping to address, try to get chosen shipping option
-                            var shippingAddress = _addressService.GetAddressById(updatedOrder.ShippingAddressId ?? 0);
                             var shippingOptionsResponse = _shippingService.GetShippingOptions(restoredCart, shippingAddress, customer, updatedOrder.ShippingRateComputationMethodSystemName, _storeContext.CurrentStore.Id);
                             if (shippingOptionsResponse.Success)
                             {
@@ -978,11 +979,15 @@ namespace Nop.Services.Orders
         {
             appliedDiscounts = new List<Discount>();
 
-            //free shipping
-            if (IsFreeShipping(cart))
-                return decimal.Zero;
-
             var customer = _customerService.GetShoppingCartCustomer(cart);
+            //use fixed rate (if possible)
+            Address shippingAddress = null;
+            if (customer != null)
+                shippingAddress = _customerService.GetCustomerShippingAddress(customer);
+
+            //free shipping
+            if (shippingAddress != null && shippingAddress.CountryId == 1 && IsFreeShipping(cart))
+                return decimal.Zero;
 
             //with additional shipping charges
             var pickupPoint = _genericAttributeService.GetAttribute<PickupPoint>(customer,
@@ -1056,9 +1061,13 @@ namespace Nop.Services.Orders
             taxRate = decimal.Zero;
 
             var customer = _customerService.GetShoppingCartCustomer(cart);
+            //use fixed rate (if possible)
+            Address shippingAddress = null;
+            if (customer != null)
+                shippingAddress = _customerService.GetCustomerShippingAddress(customer);
 
-            var isFreeShipping = IsFreeShipping(cart);
-            if (isFreeShipping)
+            //free shipping
+            if (shippingAddress != null && shippingAddress.CountryId == 1 && IsFreeShipping(cart))
                 return decimal.Zero;
 
             ShippingOption shippingOption = null;
@@ -1072,11 +1081,6 @@ namespace Nop.Services.Orders
             }
             else
             {
-                //use fixed rate (if possible)
-                Address shippingAddress = null;
-                if (customer != null)
-                    shippingAddress = _customerService.GetCustomerShippingAddress(customer);
-
                 var shippingRateComputationMethods = _shippingPluginManager.LoadActivePlugins(_workContext.CurrentCustomer, _storeContext.CurrentStore.Id);
                 if (!shippingRateComputationMethods.Any() && !_shippingSettings.AllowPickupInStore)
                     throw new NopException("Shipping rate computation method could not be loaded");

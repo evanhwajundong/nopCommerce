@@ -553,7 +553,7 @@ namespace Nop.Services.Messages
         /// <param name="order">Order instance</param>
         /// <param name="languageId">Message language identifier</param>
         /// <returns>Queued email identifier</returns>
-        public virtual IList<int> SendOrderConfirmationCustomerNotification(Order order, int languageId)
+        public virtual IList<int> SendOrderConfirmationCustomerNotification(Order order, int languageId, String templateName)
         {
             if (order == null)
                 throw new ArgumentNullException(nameof(order));
@@ -561,7 +561,7 @@ namespace Nop.Services.Messages
             var store = _storeService.GetStoreById(order.StoreId) ?? _storeContext.CurrentStore;
             languageId = EnsureLanguageIsActive(languageId, store.Id);
 
-            var messageTemplates = GetActiveMessageTemplates(MessageTemplateSystemNames.OrderPlacedConfirmationCustomerNotification, store.Id);
+            var messageTemplates = GetActiveMessageTemplates(templateName, store.Id);
             if (!messageTemplates.Any())
                 return new List<int>();
 

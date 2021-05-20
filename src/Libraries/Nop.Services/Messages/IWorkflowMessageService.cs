@@ -100,8 +100,9 @@ namespace Nop.Services.Messages
         /// </summary>
         /// <param name="order">Order instance</param>
         /// <param name="languageId">Message language identifier</param>
+        /// <param name="templateName">Template name</param>
         /// <returns>Queued email identifier</returns>
-        IList<int> SendOrderConfirmationCustomerNotification(Order order, int languageId);
+        IList<int> SendOrderConfirmationCustomerNotification(Order order, int languageId, string templateName);
 
         /// <summary>
         /// Sends an order paid notification to a customer

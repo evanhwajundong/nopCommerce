@@ -62,6 +62,11 @@
         public const string OrderPlacedConfirmationCustomerNotification = "OrderPlaced.ConfirmationCustomerNotification";
 
         /// <summary>
+        /// Represents system name of notification confirming that billing addresses does not match the AVS and will cancel the order
+        /// </summary>
+        public const string OrderPlacedCancellationCustomerNotification = "OrderPlaced.CancellationCustomerNotification";
+
+        /// <summary>
         /// Represents system name of notification customer about paid order
         /// </summary>
         public const string OrderPaidCustomerNotification = "OrderPaid.CustomerNotification";

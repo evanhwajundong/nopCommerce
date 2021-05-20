@@ -10,6 +10,7 @@ using Nop.Core.Domain.Directory;
 using Nop.Core.Domain.Discounts;
 using Nop.Core.Domain.Localization;
 using Nop.Core.Domain.Logging;
+using Nop.Core.Domain.Messages;
 using Nop.Core.Domain.Orders;
 using Nop.Core.Domain.Payments;
 using Nop.Core.Domain.Shipping;
@@ -858,6 +859,19 @@ namespace Nop.Services.Orders
                 ? $"Order placed by a store owner ('{_workContext.OriginalCustomerIfImpersonated.Email}'. ID = {_workContext.OriginalCustomerIfImpersonated.Id}) impersonating the customer."
                 : "Order placed");
 
+            //do not send order notification if order status is in pending
+            if (order.OrderStatus == OrderStatus.Pending && order.PaymentStatus == PaymentStatus.Pending)
+            {
+                var orderVoidCustomerNotificationQueuedEmailIds = _workflowMessageService.SendOrderConfirmationCustomerNotification(order, _localizationSettings.DefaultAdminLanguageId, MessageTemplateSystemNames.OrderPlacedCancellationCustomerNotification);
+                if (orderVoidCustomerNotificationQueuedEmailIds.Any())
+                    AddOrderNote(order, $"\"Order cancellation\" email (to customer) has been queued.  Queued email identifier: {string.Join(",", orderVoidCustomerNotificationQueuedEmailIds)}.");
+
+                var orderCancelledCustomerNotificationQueuedEmailIds = _workflowMessageService.SendOrderConfirmationCustomerNotification(order, _localizationSettings.DefaultAdminLanguageId, MessageTemplateSystemNames.OrderCancelledCustomerNotification);
+                if (orderCancelledCustomerNotificationQueuedEmailIds.Any())
+                    AddOrderNote(order, $"\"Order cancelled\" email (to customer) has been queued. Queued email identifiers: {string.Join(", ", orderCancelledCustomerNotificationQueuedEmailIds)}.");
+
+                return;
+            }
             //send email notifications
             var orderPlacedStoreOwnerNotificationQueuedEmailIds = _workflowMessageService.SendOrderPlacedStoreOwnerNotification(order, _localizationSettings.DefaultAdminLanguageId);
             if (orderPlacedStoreOwnerNotificationQueuedEmailIds.Any())
@@ -874,9 +888,9 @@ namespace Nop.Services.Orders
 
             if (OrderRequiresAConfirmationEmail(order.ShippingAddressId, order.BillingAddressId, order.OrderTotal))
             {
-                var orderConfirmationCustomerNotificationQueuedEmailIds = _workflowMessageService.SendOrderConfirmationCustomerNotification(order, _localizationSettings.DefaultAdminLanguageId);
+                var orderConfirmationCustomerNotificationQueuedEmailIds = _workflowMessageService.SendOrderConfirmationCustomerNotification(order, _localizationSettings.DefaultAdminLanguageId, MessageTemplateSystemNames.OrderPlacedConfirmationCustomerNotification);
                 if (orderConfirmationCustomerNotificationQueuedEmailIds.Any())
-                    AddOrderNote(order, $"\"Order confirmation\" email (to customer and owner) has been queued.  Queued email identifier: {string.Join(",", orderConfirmationCustomerNotificationQueuedEmailIds)}.");
+                    AddOrderNote(order, $"\"Order confirmation\" email (to customer) has been queued.  Queued email identifier: {string.Join(",", orderConfirmationCustomerNotificationQueuedEmailIds)}.");
 
                 SetOrderStatus(order, OrderStatus.Verifying, false);
             }
