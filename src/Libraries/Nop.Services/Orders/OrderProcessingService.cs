@@ -866,10 +866,7 @@ namespace Nop.Services.Orders
                 if (orderVoidCustomerNotificationQueuedEmailIds.Any())
                     AddOrderNote(order, $"\"Order cancellation\" email (to customer) has been queued.  Queued email identifier: {string.Join(",", orderVoidCustomerNotificationQueuedEmailIds)}.");
 
-                var orderCancelledCustomerNotificationQueuedEmailIds = _workflowMessageService.SendOrderConfirmationCustomerNotification(order, _localizationSettings.DefaultAdminLanguageId, MessageTemplateSystemNames.OrderCancelledCustomerNotification);
-                if (orderCancelledCustomerNotificationQueuedEmailIds.Any())
-                    AddOrderNote(order, $"\"Order cancelled\" email (to customer) has been queued. Queued email identifiers: {string.Join(", ", orderCancelledCustomerNotificationQueuedEmailIds)}.");
-
+                SetOrderStatus(order, OrderStatus.Cancelled, true);
                 return;
             }
             //send email notifications
