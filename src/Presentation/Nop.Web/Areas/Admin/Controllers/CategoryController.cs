@@ -616,7 +616,7 @@ namespace Nop.Web.Areas.Admin.Controllers
                         CategoryId = model.CategoryId,
                         ProductId = product.Id,
                         IsFeaturedProduct = false,
-                        DisplayOrder = 1
+                        DisplayOrder = 20
                     });
                 }
             }

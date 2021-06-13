@@ -269,7 +269,7 @@ namespace Nop.Web.Areas.Admin.Controllers
                 if (_categoryService.FindProductCategory(existingProductCategories, product.Id, categoryId) == null)
                 {
                     //find next display order
-                    var displayOrder = 1;
+                    var displayOrder = 20;
                     var existingCategoryMapping = _categoryService.GetProductCategoriesByCategoryId(categoryId, showHidden: true);
                     if (existingCategoryMapping.Any())
                         displayOrder = existingCategoryMapping.Max(x => x.DisplayOrder) + 1;

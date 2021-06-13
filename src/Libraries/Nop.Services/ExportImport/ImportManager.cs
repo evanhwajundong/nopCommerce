@@ -1663,7 +1663,7 @@ namespace Nop.Services.ExportImport
                             ProductId = product.Id,
                             CategoryId = categoryId,
                             IsFeaturedProduct = false,
-                            DisplayOrder = 1
+                            DisplayOrder = 20
                         };
                         _categoryService.InsertProductCategory(productCategory);
                     }
